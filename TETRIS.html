@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEON TETRIS: CASCADE CORE - ULTIMATE</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        :root {
+            --bg: #030308;
+            --crt-line: rgba(255, 255, 255, 0.035);
+            --neon-pink: #ff007f;
+            --neon-cyan: #00f3ff;
+            --neon-yellow: #ffde59;
+            --neon-purple: #b55fe6;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--bg);
+            overflow: hidden;
+            font-family: 'Press Start 2P', monospace;
+            color: #fff;
+        }
+
+        /* CRT Filter */
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, var(--crt-line) 50%, transparent 50%);
+            background-size: 100% 4px;
+            z-index: 20;
+            pointer-events: none;
+        }
+        body::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(0,0,0,0) 55%, rgba(0,0,0,0.75) 100%);
+            z-index: 21;
+            pointer-events: none;
+        }
+
+        #game-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 5;
+            padding: 10px 5px;
+        }
+
+        /* Screen Shake Container */
+        #shake-layer {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+            position: relative;
+        }
+
+        canvas {
+            background: rgba(10, 10, 25, 0.85);
+            border: 2px solid var(--neon-cyan);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.3), inset 0 0 15px rgba(0, 243, 255, 0.2);
+            border-radius: 6px;
+        }
+
+        /* HUD Header */
+        .hud-header {
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 10px;
+            font-size: 9px;
+            z-index: 10;
+        }
+
+        .hud-box {
+            background: rgba(15, 15, 35, 0.8);
+            border: 1px solid var(--neon-pink);
+            box-shadow: 0 0 8px rgba(255, 0, 127, 0.3);
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .hud-val {
+            color: var(--neon-yellow);
+            margin-top: 4px;
+            font-size: 11px;
+            text-shadow: 0 0 5px var(--neon-yellow);
+        }
+
+        #next-canvas {
+            background: rgba(5, 5, 15, 0.9);
+            border: 1px solid var(--neon-cyan);
+            border-radius: 4px;
+        }
+
+        #combo-popup {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 18px;
+            color: var(--neon-yellow);
+            text-shadow: 0 0 12px var(--neon-pink);
+            pointer-events: none;
+            z-index: 15;
+            transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Pause Button */
+        #pause-btn {
+            background: rgba(255, 0, 127, 0.2);
+            border: 1px solid var(--neon-pink);
+            color: var(--neon-pink);
+            padding: 6px 10px;
+            font-family: inherit;
+            font-size: 9px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        #pause-btn:active { background: var(--neon-pink); color: #000; }
+
+        /* Screens & Overlays */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(3, 3, 10, 0.92);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 20px;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 12px var(--neon-cyan);
+            margin-bottom: 20px;
+            line-height: 1.3;
+        }
+
+        .diff-selector {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0 25px 0;
+        }
+
+        .diff-btn {
+            padding: 8px 12px;
+            font-size: 9px;
+            font-family: inherit;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--neon-cyan);
+            color: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .diff-btn.active {
+            background: var(--neon-pink);
+            border-color: var(--neon-pink);
+            color: #fff;
+            box-shadow: 0 0 12px var(--neon-pink);
+        }
+
+        .diff-desc {
+            font-size: 8px;
+            color: #aaa;
+            max-width: 280px;
+            line-height: 1.6;
+            min-height: 45px;
+            margin-bottom: 15px;
+        }
+
+        .btn-main {
+            padding: 12px 28px;
+            font-size: 12px;
+            font-family: inherit;
+            color: #000;
+            background: var(--neon-yellow);
+            border: none;
+            border-radius: 4px;
+            box-shadow: 0 0 15px var(--neon-yellow);
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn-main:active { transform: scale(0.95); }
+
+        /* On-Screen D-PAD Controls */
+        #dpad-container {
+            width: 100%;
+            max-width: 420px;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            padding: 5px 10px 15px 10px;
+            z-index: 10;
+        }
+
+        .dbtn {
+            background: rgba(0, 243, 255, 0.08);
+            border: 1px solid rgba(0, 243, 255, 0.4);
+            border-radius: 8px;
+            color: var(--neon-cyan);
+            font-size: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 52px;
+            box-shadow: 0 4px 0 rgba(0, 243, 255, 0.2);
+        }
+        .dbtn:active {
+            background: rgba(0, 243, 255, 0.3);
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 rgba(0, 243, 255, 0.2);
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <!-- Top HUD -->
+    <div class="hud-header">
+        <div class="hud-box">
+            <div>SCORE</div>
+            <div id="score" class="hud-val">0</div>
+        </div>
+        <div class="hud-box" style="text-align: center;">
+            <div>NEXT</div>
+            <canvas id="next-canvas" width="50" height="50" style="margin-top:4px;"></canvas>
+        </div>
+        <div class="hud-box" style="text-align: right;">
+            <div>BEST</div>
+            <div id="highscore" class="hud-val">0</div>
+        </div>
+        <button id="pause-btn">||</button>
+    </div>
+
+    <!-- Main Game Canvas Area -->
+    <div id="shake-layer">
+        <canvas id="game"></canvas>
+        <div id="combo-popup">2x COMBO!</div>
+    </div>
+
+    <!-- On-screen D-Pad -->
+    <div id="dpad-container">
+        <div class="dbtn" id="b-left">⬅</div>
+        <div class="dbtn" id="b-right">➡</div>
+        <div class="dbtn" id="b-down">⬇</div>
+        <div class="dbtn" id="b-rotate">↻</div>
+<div class="dbtn" id="b-drop">▼▼</div>
+    </div>
+
+    <!-- Start & Difficulty Screen -->
+    <div id="screen-start" class="overlay">
+        <h1>NEON TETRIS<br><span style="font-size:12px; color:var(--neon-pink);">CASCADE CORE</span></h1>
+        
+        <div style="font-size: 9px; color: var(--neon-cyan); margin-bottom: 5px;">DIFFICULTY</div>
+        <div class="diff-selector">
+            <button class="diff-btn active" data-diff="EASY">EASY</button>
+            <button class="diff-btn" data-diff="NORMAL">NORMAL</button>
+            <button class="diff-btn" data-diff="HARDCORE">HARD</button>
+        </div>
+
+        <div id="diff-info" class="diff-desc">
+            • Slow drop speed<br>
+            • 35% Bomb chance<br>
+            • Ghost piece target enabled
+        </div>
+
+        <button id="start-btn" class="btn-main">PRESS START</button>
+    </div>
+
+    <!-- Pause Screen -->
+    <div id="screen-pause" class="overlay hidden">
+        <h1>PAUSED</h1>
+        <button id="resume-btn" class="btn-main">RESUME</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="screen-gameover" class="overlay hidden">
+        <h1 style="color: var(--neon-pink);">GAME OVER</h1>
+        <div style="font-size: 10px; margin-bottom: 15px;">FINAL SCORE: <span id="final-score" style="color:var(--neon-yellow);">0</span></div>
+        <button id="restart-btn" class="btn-main">PLAY AGAIN</button>
+    </div>
+</div>
+
+<script>
+/**
+ * NEON TETRIS: CASCADE CORE - ULTIMATE
+ * Arcade Engine Architecture
+ */
+
+const COLS = 10;
+const ROWS = 20;
+let BLOCK_SIZE = 30;
+
+const COLORS = [
+    null,
+    '#00f3ff', // 1: Cyan
+    '#0033ff', // 2: Blue
+    '#ff7f00', // 3: Orange
+    '#ffde59', // 4: Yellow
+    '#00ff66', // 5: Green
+    '#b55fe6', // 6: Purple
+    '#ff007f'  // 7: Pink/Red
+];
+
+const SHAPES = [
+    [],
+    [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], // I
+    [[2,0,0],[2,2,2],[0,0,0]],                 // J
+    [[0,0,3],[3,3,3],[0,0,0]],                 // L
+    [[4,4],[4,4]],                             // O
+    [[0,5,5],[5,5,0],[0,0,0]],                 // S
+    [[0,6,0],[6,6,6],[0,0,0]],                 // T
+    [[7,7,0],[0,7,7],[0,0,0]]                  // Z
+];
+
+// Настройки сложностей
+const DIFFICULTIES = {
+    EASY: { dropInterval: 900, bombChance: 0.35, ghost: true, lockDelay: 600 },
+    NORMAL: { dropInterval: 650, bombChance: 0.20, ghost: true, lockDelay: 450 },
+    HARDCORE: { dropInterval: 300, bombChance: 0.10, ghost: false, lockDelay: 250 }
+};
+
+// Элементы UI
+const cvs = document.getElementById('game');
+const ctx = cvs.getContext('2d');
+const nextCvs = document.getElementById('next-canvas');
+const nextCtx = nextCvs.getContext('2d');
+const shakeLayer = document.getElementById('shake-layer');
+
+const scoreEl = document.getElementById('score');
+const highscoreEl = document.getElementById('highscore');
+const comboPopup = document.getElementById('combo-popup');
+const diffInfo = document.getElementById('diff-info');
+
+// Состояние игры
+let board = [];
+let piece = null;
+let nextPiece = null;
+let currentDiff = 'EASY';
+
+let dropCounter = 0;
+let dropInterval = 900;
+let lockTimer = 0;
+let isLocking = false;
+
+let lastTime = 0;
+let score = 0;
+let level = 1;
+let combo = 0;
+let highscore = localStorage.getItem('neonTetris_best') || 0;
+let gameState = 'START'; // START, PLAYING, PAUSED, CASCADING, GAMEOVER
+
+// Частицы и Сочность (Juice)
+let particles = [];
+let fallingBlocks = []; // Блоки с анимированной гравитацией
+let shakeTime = 0;
+let shakeIntensity = 0;
+
+highscoreEl.innerText = highscore;
+
+// Адаптив размера
+function resizeCanvas() {
+    const maxWidth = window.innerWidth * 0.95;
+    const maxHeight = window.innerHeight * 0.62;
+    BLOCK_SIZE = Math.floor(Math.min(maxWidth / COLS, maxHeight / ROWS));
+    cvs.width = COLS * BLOCK_SIZE;
+    cvs.height = ROWS * BLOCK_SIZE;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function createMatrix(w, h) {
+    const m = [];
+    while (h--) m.push(new Array(w).fill(null));
+    return m;
+}
+
+function generatePieceData() {
+    const typeId = Math.floor(Math.random() * 7) + 1;
+    const shape = SHAPES[typeId];
+    const bombs = [];
+
+    // Спавн Блок-Бомбы по шансу режима сложности
+    if (Math.random() < DIFFICULTIES[currentDiff].bombChance) {
+        let blocks = [];
+        shape.forEach((row, y) => {
+            row.forEach((val, x) => { if (val !== 0) blocks.push({x, y}); });
+        });
+        if (blocks.length > 0) {
+            const b = blocks[Math.floor(Math.random() * blocks.length)];
+            bombs.push(`${b.x},${b.y}`);
+        }
+    }
+    return { matrix: JSON.parse(JSON.stringify(shape)), bombs };
+}
+
+function createPiece() {
+    if (!nextPiece) nextPiece = generatePieceData();
+    const pData = nextPiece;
+    nextPiece = generatePieceData();
+    drawNextPiece();
+
+    return {
+        matrix: pData.matrix,
+        pos: { x: Math.floor(COLS / 2) - Math.floor(pData.matrix[0].length / 2), y: 0 },
+        bombs: pData.bombs
+    };
+}
+
+function drawNextPiece() {
+    nextCtx.clearRect(0, 0, nextCvs.width, nextCvs.height);
+    const m = nextPiece.matrix;
+    const size = 10;
+    const offsetX = (nextCvs.width - m[0].length * size) / 2;
+    const offsetY = (nextCvs.height - m.length * size) / 2;
+
+    m.forEach((row, y) => {
+        row.forEach((val, x) => {
+            if (val !== 0) {
+                const isBomb = nextPiece.bombs.includes(`${x},${y}`);
+                nextCtx.fillStyle = COLORS[val];
+                nextCtx.fillRect(offsetX + x * size, offsetY + y * size, size - 1, size - 1);
+                if (isBomb) {
+                    nextCtx.fillStyle = '#fff';
+                    nextCtx.fillRect(offsetX + x * size + 3, offsetY + y * size + 3, size - 6, size - 6);
+                }
+            }
+        });
+    });
+}
+
+// Рендеринг сцены
+function draw() {
+    ctx.fillStyle = 'rgba(5, 5, 15, 0.85)';
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+    drawGrid();
+    drawMatrix(board, {x: 0, y: 0});
+
+    // Отрисовка падающих с физикой блоков (во время каскада)
+    fallingBlocks.forEach(fb => {
+        drawBlock(fb.x, fb.yActual, fb.val, fb.bomb);
+    });
+
+    if (piece && gameState === 'PLAYING') {
+        // Тень фигуры (Ghost Piece)
+        if (DIFFICULTIES[currentDiff].ghost) {
+            const ghostPos = getGhostPosition();
+            drawMatrix(piece.matrix, ghostPos, piece.bombs, true);
+        }
+        drawMatrix(piece.matrix, piece.pos, piece.bombs);
+    }
+
+    drawParticles();
+}
+
+function drawGrid() {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < COLS; x++) {
+        ctx.beginPath(); ctx.moveTo(x * BLOCK_SIZE, 0); ctx.lineTo(x * BLOCK_SIZE, cvs.height); ctx.stroke();
+    }
+    for (let y = 0; y < ROWS; y++) {
+        ctx.beginPath(); ctx.moveTo(0, y * BLOCK_SIZE); ctx.lineTo(cvs.width, y * BLOCK_SIZE); ctx.stroke();
+    }
+}
+
+function drawBlock(x, y, val, isBomb, isGhost = false) {
+    const color = COLORS[val];
+    const px = x * BLOCK_SIZE;
+    const py = y * BLOCK_SIZE;
+
+    if (isGhost) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(px + 2, py + 2, BLOCK_SIZE - 4, BLOCK_SIZE - 4);
+        return;
+    }
+
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = color;
+    ctx.fillStyle = color;
+    ctx.fillRect(px + 1, py + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+    ctx.shadowBlur = 0;
+
+    if (isBomb) {
+        const pulse = Math.abs(Math.sin(Date.now() / 120));
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + pulse * 0.5})`;
+        const sz = BLOCK_SIZE * 0.45;
+        const off = (BLOCK_SIZE - sz) / 2;
+        ctx.fillRect(px + off, py + off, sz, sz);
+    } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.fillRect(px + 2, py + 2, BLOCK_SIZE - 4, 3);
+    }
+}
+
+function drawMatrix(matrix, offset, bombList = [], isGhost = false) {
+    matrix.forEach((row, y) => {
+        row.forEach((cell, x) => {
+            if (cell !== 0 && cell !== null) {
+                const isBomb = cell.bomb || bombList.includes(`${x},${y}`);
+                const val = typeof cell === 'object' ? cell.val : cell;
+                drawBlock(x + offset.x, y + offset.y, val, isBomb, isGhost);
+            }
+        });
+    });
+}
+
+function getGhostPosition() {
+    const ghost = { matrix: piece.matrix, pos: { x: piece.pos.x, y: piece.pos.y } };
+    while (!collide(board, ghost)) {
+        ghost.pos.y++;
+    }
+    ghost.pos.y--;
+    return ghost.pos;
+}
+
+function collide(b, p) {
+    const m = p.matrix;
+    const o = p.pos;
+    for (let y = 0; y < m.length; y++) {
+        for (let x = 0; x < m[y].length; x++) {
+            if (m[y][x] !== 0 && (b[y + o.y] && b[y + o.y][x + o.x]) !== null) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function merge(b, p) {
+    p.matrix.forEach((row, y) => {
+        row.forEach((val, x) => {
+            if (val !== 0) {
+                const isB = p.bombs.includes(`${x},${y}`);
+                b[y + p.pos.y][x + p.pos.x] = { val: val, bomb: isB };
+            }
+        });
+    });
+}
+
+// Управление и Lock Delay
+function playerMove(dir) {
+    piece.pos.x += dir;
+    if (collide(board, piece)) {
+        piece.pos.x -= dir;
+    } else if (isLocking) {
+        lockTimer = 0; // Сброс таймера задержки при движении над поверхностью
+    }
+}
+
+function playerRotate() {
+    const pos = piece.pos.x;
+    let offset = 1;
+    rotateMatrix(piece.matrix);
+    
+    while (collide(board, piece)) {
+        piece.pos.x += offset;
+        offset = -(offset + (offset > 0 ? 1 : -1));
+        if (offset > piece.matrix[0].length) {
+            rotateMatrix(piece.matrix, -1);
+            piece.pos.x = pos;
+            return;
+        }
+    }
+    
+    // Перерасчет координат бомб
+    const newBombs = [];
+    const n = piece.matrix.length;
+    piece.bombs.forEach(b => {
+        let [x, y] = b.split(',').map(Number);
+        newBombs.push(`${y},${n - 1 - x}`);
+    });
+    piece.bombs = newBombs;
+
+    if (isLocking) lockTimer = 0;
+}
+
+function rotateMatrix(matrix, dir = 1) {
+    for (let y = 0; y < matrix.length; ++y) {
+        for (let x = 0; x < y; ++x) {
+            [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
+        }
+    }
+    if (dir > 0) matrix.forEach(row => row.reverse());
+    else matrix.reverse();
+}
+
+function playerDrop() {
+    piece.pos.y++;
+    if (collide(board, piece)) {
+        piece.pos.y--;
+        isLocking = true;
+    } else {
+        dropCounter = 0;
+    }
+}
+
+function hardDrop() {
+    while (!collide(board, piece)) {
+        piece.pos.y++;
+    }
+    piece.pos.y--;
+    triggerShake(8, 120);
+    lockPiece();
+}
+
+function lockPiece() {
+    merge(board, piece);
+    isLocking = false;
+    lockTimer = 0;
+    dropCounter = 0;
+    resolveBoard();
+}
+
+// Логика каскадов, взрывов и физики
+function resolveBoard() {
+    gameState = 'CASCADING';
+    let blocksToRemove = [];
+    let bombExplosions = [];
+
+    // 1. Поиск полных линий
+    for (let y = ROWS - 1; y >= 0; y--) {
+        let isFull = true;
+        for (let x = 0; x < COLS; x++) {
+            if (board[y][x] === null) { isFull = false; break; }
+        }
+        if (isFull) {
+            for (let x = 0; x < COLS; x++) blocksToRemove.push({x, y});
+        }
+    }
+
+    // 2. Детонация Блок-Бомб (соприкосновение с блоком своего цвета)
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            const cell = board[y][x];
+            if (cell && cell.bomb) {
+                const val = cell.val;
+                const neighbors = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
+                let triggered = false;
+                for (let n of neighbors) {
+                    const nx = x + n.dx, ny = y + n.dy;
+                    if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS && board[ny][nx] !== null) {
+                        if (board[ny][nx].val === val && !board[ny][nx].bomb) { triggered = true; break; }
+                    }
+                }
+                if (triggered) bombExplosions.push({x, y, val});
+            }
+        }
+    }
+
+    // Расширяем область взрыва 3х3 для бомб
+    bombExplosions.forEach(b => {
+        createExplosionParticles(b.x, b.y, COLORS[b.val]);
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                const ex = b.x + dx, ey = b.y + dy;
+                if (ey >= 0 && ey < ROWS && ex >= 0 && ex < COLS && board[ey][ex] !== null) {
+                    blocksToRemove.push({x: ex, y: ey});
+                }
+            }
+        }
+    });
+
+    if (blocksToRemove.length > 0) {
+        // Убираем дубликаты
+        const uniqueBlocks = Array.from(new Set(blocksToRemove.map(b => `${b.x},${b.y}`)))
+            .map(s => { const [x, y] = s.split(',').map(Number); return {x, y}; });
+
+        uniqueBlocks.forEach(b => {
+            if (board[b.y][b.x]) {
+                createSparkParticles(b.x, b.y, COLORS[board[b.y][b.x].val]);
+                board[b.y][b.x] = null;
+            }
+        });
+
+        combo++;
+        triggerShake(combo * 4, 150);
+        updateScore(uniqueBlocks.length * 15 * combo);
+        showComboPopup(`${combo}x COMBO!`);
+
+        setTimeout(() => { applySmoothGravity(); }, 120);
+    } else {
+        combo = 0;
+        piece = createPiece();
+        if (collide(board, piece)) {
+            gameOver();
+        } else {
+            gameState = 'PLAYING';
+        }
+    }
+}
+
+// Физика падения блоков с ускорением
+function applySmoothGravity() {
+    fallingBlocks = [];
+    let moved = false;
+
+    for (let x = 0; x < COLS; x++) {
+        let targetY = ROWS - 1;
+        for (let y = ROWS - 1; y >= 0; y--) {
+            if (board[y][x] !== null) {
+                if (targetY !== y) {
+                    fallingBlocks.push({
+                        x: x,
+                        yStart: y,
+                        yTarget: targetY,
+                        yActual: y,
+                        speed: 0,
+                        val: board[y][x].val,
+                        bomb: board[y][x].bomb
+                    });
+                    board[y][x] = null; // Временно убираем с доски для анимации
+                    moved = true;
+                }
+                targetY--;
+            }
+        }
+    }
+
+    if (moved) {
+        animateGravity();
+    } else {
+        resolveBoard();
+    }
+}
+
+function animateGravity() {
+    let allLanded = true;
+    const gravityAcc = 0.08;
+
+    fallingBlocks.forEach(fb => {
+        fb.speed += gravityAcc;
+        fb.yActual += fb.speed;
+
+        if (fb.yActual >= fb.yTarget) {
+            fb.yActual = fb.yTarget;
+            // Фиксируем обратно на доску
+            board[fb.yTarget][fb.x] = { val: fb.val, bomb: fb.bomb };
+        } else {
+            allLanded = false;
+        }
+    });
+
+    draw();
+
+    if (!allLanded) {
+        requestAnimationFrame(animateGravity);
+    } else {
+        fallingBlocks = [];
+        triggerShake(3, 80); // Легкий импакт при приземлении
+        setTimeout(resolveBoard, 100);
+    }
+}
+
+// Эффекты частиц и Juice
+function createSparkParticles(gridX, gridY, color) {
+    const px = gridX * BLOCK_SIZE + BLOCK_SIZE / 2;
+    const py = gridY * BLOCK_SIZE + BLOCK_SIZE / 2;
+    for (let i = 0; i < 8; i++) {
+        particles.push({
+            x: px, y: py,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            life: 1.0,
+            color: color,
+            size: Math.random() * 4 + 2
+        });
+    }
+}
+
+function createExplosionParticles(gridX, gridY, color) {
+    const px = gridX * BLOCK_SIZE + BLOCK_SIZE / 2;
+    const py = gridY * BLOCK_SIZE + BLOCK_SIZE / 2;
+    for (let i = 0; i < 25; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 10 + 2;
+        particles.push({
+            x: px, y: py,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 1.0,
+            color: color,
+            size: Math.random() * 6 + 3
+        });
+    }
+}
+
+function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx; p.y += p.vy;
+        p.life -= 0.04;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+}
+
+function drawParticles() {
+    particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life;
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+    });
+    ctx.globalAlpha = 1.0;
+}
+
+function triggerShake(intensity, duration) {
+    shakeIntensity = intensity;
+    shakeTime = duration;
+}
+
+function updateShake(dt) {
+    if (shakeTime > 0) {
+        shakeTime -= dt;
+        const rx = (Math.random() - 0.5) * shakeIntensity;
+        const ry = (Math.random() - 0.5) * shakeIntensity;
+        shakeLayer.style.transform = `translate(${rx}px, ${ry}px)`;
+    } else {
+        shakeLayer.style.transform = 'translate(0, 0)';
+    }
+}
+
+// Система Очков и UI
+function updateScore(pts) {
+    score += pts;
+    scoreEl.innerText = score;
+    let newLevel = Math.floor(score / 600) + 1;
+    if (newLevel > level) {
+        level = newLevel;
+        dropInterval = Math.max(80, DIFFICULTIES[currentDiff].dropInterval - (level * 50));
+    }
+}
+
+function showComboPopup(text) {
+    comboPopup.innerText = text;
+    comboPopup.style.transform = 'translate(-50%, -50%) scale(1.3)';
+    setTimeout(() => {
+        comboPopup.style.transform = 'translate(-50%, -50%) scale(0)';
+    }, 500);
+}
+
+// Игровой Цикл
+function update(time = 0) {
+    const dt = time - lastTime;
+    lastTime = time;
+
+    if (gameState === 'PLAYING') {
+        dropCounter += dt;
+
+        // Логика задержки фиксации фигуры (Lock Delay)
+        if (collide(board, { matrix: piece.matrix, pos: { x: piece.pos.x, y: piece.pos.y + 1 } })) {
+            isLocking = true;
+            lockTimer += dt;
+            if (lockTimer >= DIFFICULTIES[currentDiff].lockDelay) {
+                lockPiece();
+            }
+        } else {
+            isLocking = false;
+            lockTimer = 0;
+        }
+
+        if (dropCounter > dropInterval && !isLocking) {
+            playerDrop();
+        }
+    }
+
+    updateParticles();
+    updateShake(dt);
+    draw();
+
+    requestAnimationFrame(update);
+}
+
+// Ввод / Управление
+document.addEventListener('keydown', e => {
+    if (gameState !== 'PLAYING') return;
+    if (e.keyCode === 37) playerMove(-1);
+    else if (e.keyCode === 39) playerMove(1);
+    else if (e.keyCode === 40) playerDrop();
+    else if (e.keyCode === 38) playerRotate();
+    else if (e.keyCode === 32) hardDrop();
+});
+
+// Сенсорный D-Pad
+const bindBtn = (id, action) => {
+    const el = document.getElementById(id);
+    el.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (gameState === 'PLAYING') action();
+    });
+};
+bindBtn('b-left', () => playerMove(-1));
+bindBtn('b-right', () => playerMove(1));
+bindBtn('b-down', () => playerDrop());
+bindBtn('b-rotate', () => playerRotate());
+bindBtn('b-drop', () => hardDrop());
+
+// Сенсорные Свайпы
+let tX = 0, tY = 0;
+cvs.addEventListener('touchstart', e => {
+    if (gameState !== 'PLAYING') return;
+    tX = e.changedTouches[0].screenX;
+    tY = e.changedTouches[0].screenY;
+}, {passive: false});
+
+cvs.addEventListener('touchend', e => {
+    if (gameState !== 'PLAYING') return;
+    let dx = e.changedTouches[0].screenX - tX;
+    let dy = e.changedTouches[0].screenY - tY;
+    if (Math.abs(dx) > Math.abs(dy)) {
+        if (Math.abs(dx) > 25) playerMove(dx > 0 ? 1 : -1);
+    } else {
+        if (dy > 35) playerDrop();
+        else if (dy < -35) hardDrop();
+        else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) playerRotate();
+    }
+});
+
+// Выбор Сложности
+document.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        currentDiff = e.target.dataset.diff;
+        
+        const d = DIFFICULTIES[currentDiff];
+        diffInfo.innerHTML = `
+            • Speed: ${d.dropInterval}ms<br>
+            • Bomb Chance: ${d.bombChance * 100}%<br>
+            • Ghost Piece: ${d.ghost ? 'ENABLED' : 'DISABLED'}
+        `;
+    });
+});
+
+// Пауза и Старт
+document.getElementById('pause-btn').addEventListener('click', () => {
+    if (gameState === 'PLAYING') {
+        gameState = 'PAUSED';
+        document.getElementById('screen-pause').classList.remove('hidden');
+    }
+});
+
+document.getElementById('resume-btn').addEventListener('click', () => {
+    gameState = 'PLAYING';
+    document.getElementById('screen-pause').classList.add('hidden');
+});
+
+function startGame() {
+    board = createMatrix(COLS, ROWS);
+    score = 0; level = 1; combo = 0;
+    dropInterval = DIFFICULTIES[currentDiff].dropInterval;
+    updateScore(0);
+    
+    document.getElementById('screen-start').classList.add('hidden');
+    document.getElementById('screen-gameover').classList.add('hidden');
+    
+    nextPiece = null;
+    piece = createPiece();
+    gameState = 'PLAYING';
+}
+
+function gameOver() {
+    gameState = 'GAMEOVER';
+    if (score > highscore) {
+        highscore = score;
+        localStorage.setItem('neonTetris_best', highscore);
+        highscoreEl.innerText = highscore;
+    }
+    document.getElementById('final-score').innerText = score;
+    document.getElementById('screen-gameover').classList.remove('hidden');
+}
+
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('restart-btn').addEventListener('click', startGame);
+
+// Старт системного цикла
+requestAnimationFrame(update);
+
+</script>
+</body>
+</html>
